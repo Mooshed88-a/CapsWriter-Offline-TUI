@@ -54,6 +54,8 @@ class EngineFactory:
             raise ValueError(f"EngineFactory: 不支持的 ASR 类型 '{model_type}'")
 
         loader = EngineFactory._ASR_LOADERS[model_type]
+        if isinstance(loader, staticmethod):
+            loader = loader.__func__
         EngineClass, ConfigClass, ArgsObj = loader()
         
         config_data = {k: v for k, v in ArgsObj.__dict__.items() if not k.startswith('_')}

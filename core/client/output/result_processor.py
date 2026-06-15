@@ -223,6 +223,8 @@ class ResultProcessor:
 
         # 保存最近一次识别结果
         self.state.last_recognition_text = text
+        if hasattr(self.app, "status"):
+            self.app.status.set_recognition(text)
 
         # 控制台输出：时延 + 热词时延合并到一行
         hotword_label = f'  热词时延: {hotword_elapsed:.2f}s' if Config.hot else ''

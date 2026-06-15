@@ -5,7 +5,6 @@
 检查配置的语音模型文件是否存在，如果不存在则提供下载链接。
 """
 
-import sys
 from pathlib import Path
 
 from config_server import ServerConfig as Config
@@ -13,6 +12,42 @@ from config_server import ModelPaths, ModelDownloadLinks
 from core.server.state import console
 from . import logger
 
+
+class ModelCheckError(RuntimeError):
+    """模型配置或文件缺失时抛出的可恢复错误。"""
+
+
+def _llama_runtime_files():
+    if Config.model_type.lower() in {"fun_asr_nano", "qwen_asr"}:
+        return ["ggml.dll", "ggml-base.dll", "llama.dll"]
+    return []
+
+
+def _check_llama_runtime(engine_name: str) -> None:
+    required_files = _llama_runtime_files()
+    if not required_files:
+        return
+
+    candidate_dirs = [
+        Path("core") / "server" / "engines" / engine_name / "inference" / "bin",
+        Path("core") / "server" / "engines" / "llama" / "bin",
+    ]
+    for folder in candidate_dirs:
+        if all((folder / file_name).exists() for file_name in required_files):
+            return
+
+    detail = (
+        "\n[bold red]缺少 llama.cpp 运行库[/bold red]\n\n"
+        f"当前配置的模型类型：[bold yellow]{Config.model_type.lower()}[/bold yellow]\n\n"
+        "GGUF 引擎需要以下 DLL：\n"
+        + "".join(f"- {file_name}\n" for file_name in required_files)
+        + "\n请下载 llama.cpp Windows 发行包，并将 DLL 解压到以下任一目录：\n"
+        + "".join(f"[cyan]{folder}[/cyan]\n" for folder in candidate_dirs)
+        + "\n下载地址：\n"
+        "[cyan]https://github.com/ggml-org/llama.cpp/releases/download/b7798/llama-b7798-bin-win-vulkan-x64.zip[/cyan]\n"
+    )
+    logger.error(detail)
+    raise ModelCheckError(detail)
 
 
 def check_model() -> None:
@@ -36,6 +71,7 @@ def check_model() -> None:
             ModelPaths.fun_asr_nano_gguf_llm_decode,
             ModelPaths.fun_asr_nano_gguf_token,
         ]
+        runtime_engine = "fun_asr_gguf"
     elif model_type == 'sensevoice':
         model_dir = ModelPaths.sensevoice_dir
         required_files = [
@@ -43,12 +79,14 @@ def check_model() -> None:
             ModelPaths.sensevoice_decoder,
             ModelPaths.sensevoice_tokenizer,
         ]
+        runtime_engine = ""
     elif model_type == 'paraformer':
         model_dir = ModelPaths.paraformer_dir
         required_files = [
             ModelPaths.paraformer_model,
             ModelPaths.paraformer_tokens,
         ]
+        runtime_engine = ""
     elif model_type == 'qwen_asr':
         model_dir = ModelPaths.qwen3_asr_gguf_dir
         required_files = [
@@ -56,10 +94,11 @@ def check_model() -> None:
             ModelPaths.qwen3_asr_gguf_encoder_backend,
             ModelPaths.qwen3_asr_gguf_llm_decode,
         ]
+        runtime_engine = "qwen_asr_gguf"
     else:
         error_msg = f"不支持的模型类型: {Config.model_type}"
         logger.error(error_msg)
-        console.print(f'''
+        detail = f'''
     [bold red]不支持的模型类型：{Config.model_type}[/bold red]
 
     请在 config_server.py 中将 ServerConfig.model_type 设置为：
@@ -68,9 +107,9 @@ def check_model() -> None:
     - 'paraformer'
     - 'qwen_asr'
 
-        ''', style='bright_red')
-        input('按回车退出')
-        sys.exit(1)
+        '''
+        console.print(detail, style='bright_red')
+        raise ModelCheckError(detail)
 
     # 检查所有必需的文件
     missing_files = []
@@ -101,8 +140,10 @@ def check_model() -> None:
         error_msg += '\n'
         
         logger.error(error_msg)
-        input('按回车退出')
-        sys.exit(1)
+        raise ModelCheckError(error_msg)
+
+    if runtime_engine:
+        _check_llama_runtime(runtime_engine)
 
     # 所有必需文件检查通过
     logger.info(f"模型文件检查通过 ({model_type})")

@@ -32,6 +32,9 @@ class ShortcutEventHandler:
 
     def handle_keydown(self, key_name, task) -> None:
         """处理按键按下事件"""
+        if task.shortcut.no_toggle and key_name == 'caps_lock':
+            self.pool.submit(self.emulator.force_caps_lock_off)
+
         # 长按模式
         if task.shortcut.hold_mode:
             if not task.is_recording:
@@ -76,9 +79,11 @@ class ShortcutEventHandler:
         cancel_time = (time.perf_counter() - cancel_start) * 1000
         logger.debug(f"[{key_name}] task.cancel() 耗时: {cancel_time:.2f}ms")
 
-        if task.shortcut.suppress:
+        if task.shortcut.suppress and not task.shortcut.no_toggle:
             logger.debug(f"[{key_name}] 安排异步补发按键")
             self.pool.submit(self.emulator.emulate_key, key_name)
+        elif task.shortcut.no_toggle and key_name == 'caps_lock':
+            self.pool.submit(self.emulator.force_caps_lock_off)
 
     def _count_down(self, task) -> None:
         """倒计时（单击模式）"""

@@ -12,7 +12,7 @@ from multiprocessing import Process, Manager
 from typing import TYPE_CHECKING
 from ..state import console
 from . import start_worker
-from .check_model import check_model
+from .check_model import ModelCheckError, check_model
 from . import logger
 if TYPE_CHECKING:
     from ..app import CapsWriterServer
@@ -41,7 +41,11 @@ class ProcessManager:
         self.is_alive = True
 
         # 1. 前置检查
-        check_model()
+        try:
+            check_model()
+        except ModelCheckError:
+            self.is_alive = False
+            raise
 
         # 2. 初始化共享资源
         # 使用 Manager 管理共享列表，用于追踪活动连接
@@ -115,10 +119,9 @@ class ProcessManager:
             # 发送 None 任务通知优雅退出 (作为兜底)
 
             self.app.state.queue_in.put(None)
-            
+
             # 如果 2 秒内没退，则强制 kill
             self._process.join(timeout=2)
             if self._process.is_alive():
                 logger.debug("子进程未响应优雅退出，执行强制终止")
                 self._process.terminate()
-            

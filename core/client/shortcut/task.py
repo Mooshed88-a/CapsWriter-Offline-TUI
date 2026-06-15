@@ -127,8 +127,16 @@ class ShortcutTask:
 
         # 执行 restore（可恢复按键 + 非阻塞模式）
         # 阻塞模式下按键不会发送到系统，状态不会改变，不需要恢复
-        if self.shortcut.is_toggle_key() and not self.shortcut.suppress:
+        if self.shortcut.is_toggle_key() and not self.shortcut.suppress and not self.shortcut.no_toggle:
             self._restore_key()
+        elif self.shortcut.no_toggle and self.shortcut.key == 'caps_lock':
+            manager = self._manager_ref()
+            if manager:
+                manager.force_caps_lock_off()
+
+        stream = getattr(self.app, "stream", None)
+        if stream and hasattr(stream, "auto_reopen_if_unavailable"):
+            stream.auto_reopen_if_unavailable()
 
     def _restore_key(self) -> None:
         """恢复按键状态（防自捕获逻辑由 ShortcutManager 处理）"""

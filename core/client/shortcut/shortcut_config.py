@@ -19,7 +19,8 @@ class Shortcut:
         key: 快捷键名称（支持 pynput 格式，如 'caps_lock', 'a', 'f1', 'ctrl+shift+a'）
         type: 输入类型，'keyboard' 或 'mouse'
         suppress: 是否阻塞按键事件（让其它程序收不到这个按键消息）
-        hold_mode: 长按模式。True=按下录音松开停止；False=单击开始再次单击停止
+    hold_mode: 长按模式。True=按下录音松开停止；False=单击开始再次单击停止
+        no_toggle: 是否禁止切换锁定键状态，主要用于 CapsLock 语音输入专用模式
         threshold: 按下快捷键后触发语音识别的时间阈值（秒），用于防止误触。None 表示使用 Config.threshold
         enabled: 是否启用此快捷键
 
@@ -31,6 +32,7 @@ class Shortcut:
     type: Literal['keyboard', 'mouse'] = 'keyboard'
     suppress: bool = False
     hold_mode: bool = True
+    no_toggle: bool = False
     threshold: Optional[float] = None  # None 表示使用 Config.threshold
     enabled: bool = True
 
@@ -107,8 +109,9 @@ class CommonShortcuts:
         return Shortcut(
             key='caps_lock',
             type='keyboard',
-            suppress=False,
+            suppress=True,
             hold_mode=True,
+            no_toggle=True,
             threshold=0.3
         )
 

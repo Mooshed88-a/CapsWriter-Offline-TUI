@@ -21,6 +21,7 @@ class ClientConfig:
             'type': 'keyboard',     # 是键盘快捷键
             'suppress': True,      # 阻塞按键（短按会补发）
             'hold_mode': True,      # 长按模式
+            'no_toggle': True,      # 不切换 CapsLock；如果已开启则强制关闭
             'enabled': True         # 启用此快捷键
         },
         {
@@ -46,7 +47,8 @@ class ClientConfig:
     context = ''                # 提示词上下文，用于辅助 Fun-ASR-Nano 模型识别（例如输入人名、地名、专业术语等）
     language = 'auto'           # 识别语言：'auto', 'chinese', 'english', 'japanese' 等（各引擎支持范围不同）
 
-    trash_punc = '，。,.'       # 识别结果要消除的末尾标点
+    trash_punc = '\uFF0C\u3002,.'       # 识别结果要消除的末尾标点
+    trash_punc_any = False      # 是否删除任意 Unicode 标点/符号；False 时只删除 trash_punc 中列出的符号
     trash_punc_thresh = 8       # 识别结果的单词数量低于阈值时，强制去除末尾标点
     trash_punc_apps = ['WeiXin.exe', ]   # 对于指定的应用，强制去除末尾标点
 
@@ -62,6 +64,9 @@ class ClientConfig:
     llm_stop_key = 'esc'        # 中断 LLM 输出的快捷键
 
     enable_tray = True          # 客户端默认启用托盘图标功能
+    input_device = None         # 麦克风输入设备 ID；None 表示使用系统默认输入设备
+    auto_start_mic = True       # 单程序 TUI 启动后自动打开麦克风流
+    auto_start_worker = True    # 单程序 TUI 启动后自动加载识别 worker
 
     # 日志配置
     log_level = 'DEBUG'          # 日志级别：'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
@@ -130,4 +135,3 @@ r"""
   {'key': 'f12', 'type': 'keyboard', 'suppress': True, 'hold_mode': True, 'enabled': True}, 
   {'key': 'x2', 'type': 'mouse', 'suppress': True, 'hold_mode': True, 'enabled': True}, 
 """
-

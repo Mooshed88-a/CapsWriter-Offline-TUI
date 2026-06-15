@@ -319,7 +319,7 @@ class _TraySystem:
         except Exception as e:
             logger.warning(f"停止托盘图标时发生错误: {e}")
 
-    def start(self) -> None:
+    def start(self, start_hidden: bool = True) -> None:
         """启动托盘系统"""
         # 托盘图标线程
         t_tray = threading.Thread(target=self.icon.run, daemon=False)
@@ -329,11 +329,17 @@ class _TraySystem:
         t_monitor = threading.Thread(target=self.monitor_loop, daemon=True)
         t_monitor.start()
 
-        # 启动时隐藏窗口
-        self.toggle_window()
+        if start_hidden:
+            self.toggle_window()
 
 
-def enable_min_to_tray(name: Optional[str] = None, icon_path: Optional[str] = None, exit_callback=None, more_options: list = None) -> None:
+def enable_min_to_tray(
+    name: Optional[str] = None,
+    icon_path: Optional[str] = None,
+    exit_callback=None,
+    more_options: list = None,
+    start_hidden: bool = True,
+) -> None:
     """
     启用最小化到托盘功能
 
@@ -374,7 +380,24 @@ def enable_min_to_tray(name: Optional[str] = None, icon_path: Optional[str] = No
             return  # 没有控制台窗口
 
         _tray_instance = _TraySystem(name, icon_path, more_options)
-        _tray_instance.start()
+        _tray_instance.start(start_hidden=start_hidden)
+
+
+def hide_to_tray() -> bool:
+    """隐藏当前控制台窗口到托盘。"""
+    if _tray_instance and _tray_instance.hwnd and user32:
+        user32.ShowWindow(_tray_instance.hwnd, SW_HIDE)
+        return True
+    return False
+
+
+def restore_from_tray() -> bool:
+    """从托盘恢复当前控制台窗口。"""
+    if _tray_instance and _tray_instance.hwnd and user32:
+        user32.ShowWindow(_tray_instance.hwnd, SW_RESTORE)
+        user32.SetForegroundWindow(_tray_instance.hwnd)
+        return True
+    return False
 
 
 

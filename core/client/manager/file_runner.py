@@ -56,10 +56,12 @@ class FileRunner:
             
             logger.info("所有文件已处理完成")
             
-            input('\n按回车退出\n')
+            logger.info("文件模式处理完毕")
 
         except Exception as e:
             logger.error(f"文件模式运行异常: {e}", exc_info=True)
-            raise
+            if hasattr(self.app, "status"):
+                self.app.status.set_error(f"文件模式运行异常: {e}")
+            return
         finally:
             self.app.hotword.stop()

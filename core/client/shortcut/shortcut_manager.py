@@ -212,6 +212,10 @@ class ShortcutManager:
 
         self._pool.submit(do_restore)
 
+    def force_caps_lock_off(self) -> None:
+        """安排一次 CapsLock 关闭动作。"""
+        self._pool.submit(self._emulator.force_caps_lock_off)
+
     def is_restoring(self, key: str) -> bool:
         """检查是否正在恢复指定按键"""
         return key in self._restoring_keys
@@ -278,6 +282,8 @@ class ShortcutManager:
         for shortcut in self.shortcuts:
             if shortcut.enabled:
                 mode = "长按" if shortcut.hold_mode else "单击"
+                if shortcut.no_toggle and shortcut.key == 'caps_lock':
+                    mode = "长按免切换"
                 toggle = "可恢复" if shortcut.is_toggle_key() else "普通键"
                 logger.info(f"  [{shortcut.key}] {mode}模式, 阻塞:{shortcut.suppress}, {toggle}")
 

@@ -45,7 +45,8 @@ class SocketManager:
         
         # 0. 启动前自检环境
         if not self._check_port():
-            input("\n按回车键退出...")
+            if hasattr(self.app, "status"):
+                self.app.status.set_error(f"端口冲突：{Config.addr}:{Config.port}")
             return 
 
         self._is_running = True

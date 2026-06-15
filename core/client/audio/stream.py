@@ -8,7 +8,6 @@
 
 from __future__ import annotations
 
-import sys
 import time
 import threading
 from typing import TYPE_CHECKING, Optional
@@ -16,6 +15,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 import sounddevice as sd
 
+from config_client import ClientConfig as Config
 from core.client.state import console
 from . import logger
 
@@ -54,6 +54,7 @@ class AudioStreamManager:
         self.app = app
         self._channels = 1
         self._running = False  # 标志是否应该运行
+        self._last_auto_reopen = 0.0
 
     @property
     def state(self) -> ClientState:
@@ -111,8 +112,10 @@ class AudioStreamManager:
             return self.state.stream
 
         # 检测音频设备
+        device_name = "未知设备"
         try:
-            device = sd.query_devices(kind='input')
+            selected_device = getattr(Config, "input_device", None)
+            device = sd.query_devices(selected_device, kind='input')
             self._channels = min(2, device['max_input_channels'])
             device_name = device.get('name', '未知设备')
             console.print(
@@ -122,17 +125,21 @@ class AudioStreamManager:
             logger.info(f"找到音频设备: {device_name}, 声道数: {self._channels}")
         except UnicodeDecodeError:
             logger.warning("无法获取音频设备名称（编码问题）")
-        except sd.PortAudioError:
-            logger.error("未找到麦克风设备")
-            input('按回车键退出')
-            sys.exit(1)
+        except sd.PortAudioError as e:
+            message = f"未找到可用麦克风设备: {e}"
+            logger.error(message)
+            console.print(f"[bold red]{message}[/bold red]")
+            if hasattr(self.app, "status"):
+                self.app.status.mic_state = "设备不可用"
+                self.app.status.set_error(message)
+            return None
 
         # 创建音频流
         try:
             stream = sd.InputStream(
                 samplerate=self.SAMPLE_RATE,
                 blocksize=int(self.BLOCK_DURATION * self.SAMPLE_RATE),
-                device=None,
+                device=getattr(Config, "input_device", None),
                 dtype="float32",
                 channels=self._channels,
                 callback=self._audio_callback,
@@ -142,6 +149,8 @@ class AudioStreamManager:
 
             self.state.stream = stream
             self._running = True
+            if hasattr(self.app, "status"):
+                self.app.status.mic_state = f"已打开：{device_name}"
             logger.debug(
                 f"音频流已启动: 采样率={self.SAMPLE_RATE}, "
                 f"块大小={int(self.BLOCK_DURATION * self.SAMPLE_RATE)}"
@@ -150,6 +159,9 @@ class AudioStreamManager:
 
         except sd.PortAudioError as e:
             logger.error(f"创建音频流失败: {e}", exc_info=True)
+            if hasattr(self.app, "status"):
+                self.app.status.mic_state = "打开失败"
+                self.app.status.set_error(f"创建音频流失败: {e}")
             if '-9999' in str(e):
                 console.print("""
 [bold red]检测到麦克风被占用或权限异常（错误码 -9999）[/bold red]
@@ -162,6 +174,9 @@ class AudioStreamManager:
             return None
         except Exception as e:
             logger.error(f"创建音频流失败: {e}", exc_info=True)
+            if hasattr(self.app, "status"):
+                self.app.status.mic_state = "打开失败"
+                self.app.status.set_error(f"创建音频流失败: {e}")
             return None
 
     def stop(self) -> None:
@@ -178,6 +193,8 @@ class AudioStreamManager:
                 logger.debug(f"停止音频流时发生错误: {e}")
             finally:
                 self.state.stream = None
+                if hasattr(self.app, "status"):
+                    self.app.status.mic_state = "已停止"
 
     def reopen(self) -> Optional[sd.InputStream]:
         """
@@ -205,3 +222,18 @@ class AudioStreamManager:
 
         # 启动新流
         return self.start()
+
+    def auto_reopen_if_unavailable(self) -> None:
+        status = getattr(self.app, "status", None)
+        last_error = getattr(status, "last_error", "")
+        if "未找到可用麦克风设备" not in last_error:
+            return
+        now = time.time()
+        if now - self._last_auto_reopen < 1.0:
+            return
+        self._last_auto_reopen = now
+        if status:
+            status.log("录音结束后检测到麦克风不可用，自动重开麦克风")
+        timer = threading.Timer(0.2, self.reopen)
+        timer.daemon = True
+        timer.start()

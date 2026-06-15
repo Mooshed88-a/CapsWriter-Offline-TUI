@@ -1,11 +1,13 @@
 # ASR core
 sherpa-onnx
 numpy
+soundfile
 gguf
 onnxruntime-directml
 
 # basic
 rich
+textual
 websockets
 watchdog
 pypinyin

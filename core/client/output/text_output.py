@@ -11,6 +11,7 @@ import asyncio
 import platform
 from typing import Optional
 import re
+import unicodedata
 
 import keyboard
 import pyclip
@@ -58,7 +59,7 @@ class TextOutput:
         Returns:
             处理后的文本
         """
-        if not text or not Config.trash_punc:
+        if not text or (not Config.trash_punc and not getattr(Config, "trash_punc_any", False)):
             return text
 
         # 检查是否在强制去标点的应用中
@@ -71,8 +72,18 @@ class TextOutput:
         if not force_strip and Config.trash_punc_thresh > 0 and count_semantic_units(text) > Config.trash_punc_thresh:
             return text
 
-        clean_text = re.sub(f"(?<=.)[{Config.trash_punc}]$", "", text)
-        return clean_text
+        if len(text) <= 1:
+            return text
+
+        last_char = text[-1]
+        if getattr(Config, "trash_punc_any", False):
+            category = unicodedata.category(last_char)
+            if category.startswith(("P", "S")):
+                return text[:-1]
+
+        if Config.trash_punc and last_char in Config.trash_punc:
+            return text[:-1]
+        return text
     
     async def output(self, text: str, paste: Optional[bool] = None) -> None:
         """

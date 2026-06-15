@@ -35,6 +35,8 @@ class ServerConfig:
     # 集成显卡兼容性补丁
     # os.environ["GGML_VK_DISABLE_COOPMAT"] = "1"   # AMD集显无法加载 GGUF 模型时尝试
     # os.environ["GGML_VK_DISABLE_F16"] = "1"       # 集成显卡解码有误，强制熔断时尝试
+    ggml_vk_disable_coopmat = False
+    ggml_vk_disable_f16 = False
 
 
 
@@ -173,4 +175,3 @@ class ForceAlignerGGUFArgs:
     # 对齐细节
     n_ctx = 3072                # 上下文窗口大小
     dml_pad_to = 30             # 开启 DirectML 加速时，短音频统一填充到指定长度，有加速效果
-

@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-打包脚本 - 使用 7zip 压缩 dist 目录中的构建产物
+打包脚本 - 使用 7zip 压缩 dist 目录中的单程序 TUI 构建产物
 
 功能：
-1. 打包 CapsWriter-Offline（服务端+客户端）
-2. 打包 CapsWriter-Offline-Client（仅客户端）
-3. 智能排除模型文件（.onnx, .dll, .json 等），但保留说明文档
+1. 打包 CapsWriter-Offline-TUI
+2. 智能排除模型文件（.onnx, .dll, .json 等），但保留说明文档
 """
 
 import os
-import subprocess
 from pathlib import Path
-from datetime import datetime
+import subprocess
 
 
 def find_7zip():
@@ -173,7 +171,7 @@ def package_with_7zip(source_dir, output_zip, file_list_file):
         print(f"STDERR: {result.stderr}")
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
-    print("\n✅ 打包成功！")
+    print("\n打包成功！")
 
     # 显示压缩包信息
     info_result = subprocess.run(
@@ -196,6 +194,7 @@ def package_with_7zip(source_dir, output_zip, file_list_file):
 def main():
     """主函数"""
     dist_dir = Path('dist')
+    project_name = 'CapsWriter-Offline-TUI'
 
     # 检查 dist 目录
     if not dist_dir.exists():
@@ -204,41 +203,26 @@ def main():
         return
 
     print("=" * 60)
-    print("CapsWriter-Offline 打包脚本")
+    print(f"{project_name} 打包脚本")
     print("=" * 60)
 
     # 构建输出目录
     release_dir = Path('release')
     release_dir.mkdir(exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y%m%d")
-
-    # 打包配置列表
     packages = []
-
-    # 检查 CapsWriter-Offline（服务端+客户端）
-    server_dist = dist_dir / 'CapsWriter-Offline'
-    if server_dist.exists():
+    app_dist = dist_dir / project_name
+    if app_dist.exists():
         packages.append({
-            'source': server_dist,
-            'output': release_dir / f'CapsWriter-Offline-{timestamp}.zip',
-            'name': '服务端+客户端'
-        })
-
-    # 检查 CapsWriter-Offline-Client（仅客户端）
-    client_dist = dist_dir / 'CapsWriter-Offline-Client'
-    if client_dist.exists():
-        packages.append({
-            'source': client_dist,
-            'output': release_dir / f'CapsWriter-Offline-Client-{timestamp}.zip',
-            'name': '仅客户端'
+            'source': app_dist,
+            'output': release_dir / f'{project_name}.zip',
+            'name': '单程序 TUI'
         })
 
     if not packages:
         print(f"\n错误: dist 目录中没有找到构建产物")
         print(f"请先运行 PyInstaller 构建:")
         print(f"  pyinstaller build.spec")
-        print(f"  pyinstaller build-client.spec")
         return
 
     print(f"\n找到 {len(packages)} 个待打包的构建产物")
@@ -255,8 +239,7 @@ def main():
             list_file_name = f'file_list_{idx}.txt'
 
             # 生成文件列表
-            is_client_only = pkg['source'].name == 'CapsWriter-Offline-Client'
-            files, list_file = create_file_list(pkg['source'], list_file_name, is_client_only)
+            files, list_file = create_file_list(pkg['source'], list_file_name, False)
 
             if not files:
                 print(f"\n警告: 没有找到要打包的文件")

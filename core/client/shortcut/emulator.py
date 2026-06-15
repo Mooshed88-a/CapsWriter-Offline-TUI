@@ -49,6 +49,22 @@ class ShortcutEmulator:
         else:
             logger.warning(f"[{key_name}] 无法识别的按键，跳过补发")
 
+    def force_caps_lock_off(self) -> None:
+        """如果 CapsLock 已开启，则模拟一次按键将其关闭。"""
+        try:
+            import ctypes
+
+            is_on = bool(ctypes.WinDLL("user32").GetKeyState(0x14) & 1)
+        except Exception as e:
+            logger.debug(f"检测 CapsLock 状态失败: {e}")
+            return
+
+        if not is_on:
+            return
+
+        logger.debug("检测到 CapsLock 已开启，正在强制关闭")
+        self.emulate_key("caps_lock")
+
     def emulate_mouse_click(self, button_name: str) -> None:
         """
         异步模拟鼠标按键

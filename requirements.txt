@@ -1,4 +1,4 @@
-# basic and cli
+# basic and tui
 rich
 textual
 typer
@@ -13,11 +13,16 @@ sounddevice
 soundfile
 watchdog
 
-# network and api 
+# network and api compatibility
 websockets
 openai
 ollama
 httpx
+
+# ASR core
+sherpa-onnx
+gguf
+onnxruntime-directml
 
 # data process
 numpy
@@ -26,7 +31,7 @@ pypinyin
 srt
 rapidfuzz
 
-# tray and image
+# tray and image compatibility
 pystray
 Pillow
 tkhtmlview

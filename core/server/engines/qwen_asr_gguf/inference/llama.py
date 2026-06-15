@@ -191,6 +191,28 @@ def configure_logging(logs=True):
         _log_callback_ref = LOG_CALLBACK(lambda l, m, u: None)
     llama_log_set(_log_callback_ref, None)
 
+
+def _llama_library_names():
+    if sys.platform == "win32":
+        return "ggml.dll", "ggml-base.dll", "llama.dll"
+    if sys.platform == "darwin":
+        return "libggml.dylib", "libggml-base.dylib", "libllama.dylib"
+    return "libggml.so", "libggml-base.so", "libllama.so"
+
+
+def _resolve_lib_dir() -> Path:
+    lib_names = _llama_library_names()
+    local_dir = Path(__file__).parent / "bin"
+    shared_dir = Path(__file__).resolve().parents[2] / "llama" / "bin"
+    for lib_dir in (local_dir, shared_dir):
+        if all((lib_dir / name).exists() for name in lib_names):
+            return lib_dir
+    raise FileNotFoundError(
+        "缺少 llama.cpp 运行库，请将 ggml.dll、ggml-base.dll、llama.dll 解压到 "
+        f"{local_dir} 或 {shared_dir}"
+    )
+
+
 def bind_llama_lib():
     """绑定 llama.cpp 库的 api"""
     global llama, ggml, ggml_base
@@ -211,22 +233,8 @@ def bind_llama_lib():
     if llama is not None:
         return
 
-    # 获取库文件所在目录 (模块目录下的 bin)
-    lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bin")
-
-    # DLL 命名处理
-    if sys.platform == "win32":
-        GGML_DLL = "ggml.dll"
-        GGML_BASE_DLL = "ggml-base.dll"
-        LLAMA_DLL = "llama.dll"
-    elif sys.platform == "darwin":
-        GGML_DLL = "libggml.dylib"
-        GGML_BASE_DLL = "libggml-base.dylib"
-        LLAMA_DLL = "libllama.dylib"
-    else:
-        GGML_DLL = "libggml.so"
-        GGML_BASE_DLL = "libggml-base.so"
-        LLAMA_DLL = "libllama.so"
+    lib_dir = str(_resolve_lib_dir())
+    GGML_DLL, GGML_BASE_DLL, LLAMA_DLL = _llama_library_names()
 
     ggml = ctypes.CDLL(os.path.join(lib_dir, GGML_DLL))
     ggml_base = ctypes.CDLL(os.path.join(lib_dir, GGML_BASE_DLL))
@@ -412,7 +420,7 @@ def init():
     切换目录，初始化 llama.cpp lib
     """
     original_cwd = Path.cwd()
-    lib_dir = Path(__file__).parent / 'bin'
+    lib_dir = _resolve_lib_dir()
 
     # 跳转到 dll 所在目录，并将其加到 Path
     os.chdir(lib_dir)
