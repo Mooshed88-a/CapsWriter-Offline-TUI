@@ -32,6 +32,7 @@ from textual.widgets import (
 from config_client import ClientConfig as ClientConfig
 from config_client import __version__
 from config_server import ServerConfig as ServerConfig
+from core.client.audio.system_volume import SystemVolumeManager
 from core.client.audio.stream import AudioStreamManager
 from core.client.diary.diary_writer import DiaryWriter
 from core.client.hotword.manager import HotwordManager
@@ -81,6 +82,7 @@ class CapsWriterSingleApp:
         self.output = TextOutput()
         self.diary = DiaryWriter(base_path=self.base_dir)
         self.stream = AudioStreamManager(self)
+        self.system_volume = SystemVolumeManager(target_level=0.20)
         self.shortcut = ShortcutManager(self, [Shortcut(**sc) for sc in ClientConfig.shortcuts])
         self.udp = UDPController(self.shortcut)
         self.tray = TrayController(self)
@@ -125,6 +127,7 @@ class CapsWriterSingleApp:
             self.result_task.cancel()
         self.udp.stop()
         self.shortcut.stop()
+        self.system_volume.restore_now()
         self.stream.stop()
         self.hotword.stop()
         self.llm.stop()
