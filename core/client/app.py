@@ -23,6 +23,7 @@ from .manager import (
     MicRunner, FileRunner
 )
 from .audio.stream import AudioStreamManager
+from .audio.system_volume import SystemVolumeManager
 from .shortcut.shortcut_manager import ShortcutManager
 from .shortcut.shortcut_config import Shortcut
 
@@ -74,6 +75,7 @@ class CapsWriterClient:
 
         # 实例化硬件资源管理组件
         self.stream = AudioStreamManager(self)
+        self.system_volume = SystemVolumeManager(target_level=0.20)
         self.shortcut = ShortcutManager(self, [Shortcut(**sc) for sc in Config.shortcuts])
         self.udp = UDPController(self.shortcut)
 
@@ -89,6 +91,7 @@ class CapsWriterClient:
         # 1. 停止核心运行组件
         self.udp.stop()
         self.shortcut.stop()
+        self.system_volume.restore_now()
         self.stream.stop()
 
         # 2. 托盘资源
@@ -137,4 +140,3 @@ class CapsWriterClient:
             self.loop.run_until_complete(runner.run())
         except RuntimeError:
             ...
-

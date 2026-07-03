@@ -77,6 +77,7 @@ class ShortcutTask:
         # 记录开始时间
         self.recording_start_time = time.time()
         self.is_recording = True
+        self._lower_system_volume_if_needed()
 
         # 将开始标志放入队列
         asyncio.run_coroutine_threadsafe(
@@ -102,17 +103,20 @@ class ShortcutTask:
         logger.debug(f"[{self.shortcut.key}] 取消录音任务（时间过短）")
 
         self.is_recording = False
+        self._restore_system_volume_if_needed()
         self.state.stop_recording()
         self._status.stop()
 
-        self.task.cancel()
-        self.task = None
+        if self.task:
+            self.task.cancel()
+            self.task = None
 
     def finish(self) -> None:
         """完成录音任务"""
         logger.info(f"[{self.shortcut.key}] 释放：完成录音")
 
         self.is_recording = False
+        self._restore_system_volume_if_needed()
         self.state.stop_recording()
         self._status.stop()
 
@@ -148,3 +152,26 @@ class ShortcutTask:
             manager.schedule_restore(self.shortcut.key)
         else:
             logger.warning(f"[{self.shortcut.key}] manager 引用丢失，无法 restore")
+
+    def _should_adjust_system_volume(self) -> bool:
+        return (
+            self.shortcut.key == 'caps_lock'
+            and self.shortcut.type == 'keyboard'
+            and self.shortcut.hold_mode
+        )
+
+    def _lower_system_volume_if_needed(self) -> None:
+        if not self._should_adjust_system_volume():
+            return
+
+        volume = getattr(self.app, "system_volume", None)
+        if volume and hasattr(volume, "lower_for_recording"):
+            volume.lower_for_recording()
+
+    def _restore_system_volume_if_needed(self) -> None:
+        if not self._should_adjust_system_volume():
+            return
+
+        volume = getattr(self.app, "system_volume", None)
+        if volume and hasattr(volume, "restore_after_recording"):
+            volume.restore_after_recording()
